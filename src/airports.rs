@@ -28,24 +28,13 @@ impl KdPoint for Airport {
     fn at(&self, k: usize) -> f32 { self.pos[k] }
 }
 
-struct AirportQuery {
+pub struct AirportFinder {
     tree: KdTree<Airport>,
 }
 
-impl AirportQuery {
-    pub fn closest(&self, lat: f32, long: f32) -> &Airport {
-        let point = lat_long_to_point(lat, long);
-        self.tree.nearest(&point).expect("embty").item
-    }
-}
-
-
-fn lat_long_to_point(lat: f32, long: f32) -> [f32; 3] {
-    [lat, long, 0.]
-}
-
-pub fn read(path: &str) -> AirportQuery {
-    let csv = quick_csv::Csv::from_file(path).expect("Could not find airport location file.");
+impl AirportFinder {
+    pub fn from_csv(path: &str) -> Self {
+        let csv = quick_csv::Csv::from_file(path).expect("Could not find airport location file.");
     let airports = csv.into_iter()
         .skip(1)
         .map(|r| {
@@ -55,5 +44,23 @@ pub fn read(path: &str) -> AirportQuery {
                 .into()
         })
         .collect();
-    AirportQuery { tree: KdTree::build_by_ordered_float(airports) }
+        Self { tree: KdTree::build_by_ordered_float(airports) }
+    }
+
+    pub fn closest(&self, lat: f32, long: f32) -> &Airport {
+        let point = lat_long_to_point(lat, long);
+        self.tree.nearest(&point).expect("embty").item
+    }
 }
+
+
+fn lat_long_to_point(lat: f32, long: f32) -> [f32; 3] {
+    //TODO if lat/long are very close to read data, then we could just do rounding + hashmap
+    let lo = long.to_radians();
+    let la = lat.to_radians();
+    let x = lo.cos()*la.sin();
+    let y = lo.sin()*la.sin();
+    let z = la.cos();
+    [x, y, z]
+}
+
