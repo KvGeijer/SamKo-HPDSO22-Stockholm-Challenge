@@ -1,4 +1,4 @@
-use der_parser::ber::{parse_ber, BerObject, BerObjectContent};
+use der_parser::ber::{parse_ber_octetstring, BerObject, BerObjectContent};
 
 #[derive(Debug)]
 pub struct Flight {
@@ -7,6 +7,7 @@ pub struct Flight {
     pub to_lat: f32,
     pub to_long: f32,
 }
+
 // Just for the nicer function call :D
 pub struct FlightsParser {}
 
@@ -21,11 +22,9 @@ impl FlightsParser {
         let mut flights: Vec<Flight> = vec![];
 
         let binary: Vec<u8> = std::fs::read(file).expect("Invalid binary file!");
-
         let mut stream = &binary[..];
 
-        // TODO: Try parsing with some other function
-        while let Ok((rest, ber)) = parse_ber(stream) {
+        while let Ok((rest, ber)) = parse_ber_octetstring(stream) {
             stream = rest;
             flights.push(ber_to_flight(ber));
         }
@@ -37,8 +36,8 @@ impl FlightsParser {
 fn ber_to_flight(ber: BerObject) -> Flight {
     // TODO: Does this take any meaningful time? Can we make parsing to f32 faster?
     // TODO: Can we make this cleaner without spending more time? Maybe vectorize?
-    
-    let bin_slice: &[u8] =  
+
+    let bin_slice: &[u8] =
         match ber.content {
             BerObjectContent::OctetString(octet) => octet,
             other => panic!("ERROR, BER CONTENT HAS CHANGED: {:?}", other),
