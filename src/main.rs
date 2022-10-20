@@ -1,3 +1,7 @@
+mod flights_parser;
+
+use flights_parser::{FlightsParser, Flight};
+
 fn main() {
-    println!("Hello, world!");
+    let _flights: Vec<Flight> = FlightsParser::parse("./data/dat.bin");
 }
