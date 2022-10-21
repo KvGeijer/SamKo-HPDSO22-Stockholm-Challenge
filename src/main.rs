@@ -1,5 +1,6 @@
 mod flights_parser;
 mod airports;
+mod network;
 
 use flights_parser::{FlightsParser, Flight};
 use airports::{AirportFinder};
