@@ -33,10 +33,10 @@ pub struct AirportFinder {
 }
 
 impl AirportFinder {
-    pub fn from(airports: Vec<Airport>) -> Self {
+    pub fn new(airports: Vec<Airport>) -> Self {
         Self { tree: KdTree::build_by_ordered_float(airports) }
     }
-    
+
     pub fn from_csv(path: &str) -> Self {
         let csv = quick_csv::Csv::from_file(path).expect("Could not find airport location file.");
     let airports = csv.into_iter()
@@ -48,7 +48,7 @@ impl AirportFinder {
                 .into()
         })
         .collect();
-        Self::from(airports)
+        Self::new(airports)
     }
 
     pub fn closest(&self, lat: f32, long: f32) -> &Airport {
