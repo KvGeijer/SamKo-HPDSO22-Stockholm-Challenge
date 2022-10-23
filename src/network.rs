@@ -27,7 +27,7 @@ impl FlightCountNetwork {
         for flight in flights {
             let start = airports.closest_ind(flight.from_lat, flight.from_long);
             let end = airports.closest_ind(flight.to_lat, flight.to_long);
-            self.add_flight(start - 1, end - 1);
+            self.add_flight(start, end);
         }
     }
 
