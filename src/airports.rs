@@ -42,7 +42,10 @@ pub struct KdTreeAirportFinder {
 
 impl KdTreeAirportFinder {
     pub fn new(airports: Vec<Airport>) -> Self {
-        Self { len: airports.len(), tree: KdTree::build_by_ordered_float(airports) }
+        Self {
+            len: airports.len(),
+            tree: KdTree::build_by_ordered_float(airports),
+        }
     }
 
     pub fn from_csv(path: &Path) -> Self {
