@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use quick_csv;
 use kd_tree::{KdPoint, KdTree};
 use typenum;
@@ -30,14 +32,19 @@ impl KdPoint for Airport {
 
 pub struct AirportFinder {
     tree: KdTree<Airport>,
+    len: usize,
 }
 
 impl AirportFinder {
     pub fn new(airports: Vec<Airport>) -> Self {
-        Self { tree: KdTree::build_by_ordered_float(airports) }
+        Self { len: airports.len(), tree: KdTree::build_by_ordered_float(airports) }
     }
 
-    pub fn from_csv(path: &str) -> Self {
+    pub fn airport_count(&self) -> usize {
+        self.len
+    }
+
+    pub fn from_csv(path: &Path) -> Self {
         let csv = quick_csv::Csv::from_file(path).expect("Could not find airport location file.");
     let airports = csv.into_iter()
         .skip(1)

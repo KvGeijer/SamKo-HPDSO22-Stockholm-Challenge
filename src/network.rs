@@ -1,5 +1,6 @@
 
-use crate::airports::{AirportFinder, Airport, self};
+
+use crate::airports::{AirportFinder};
 use crate::flights_parser::{Flight};
 
 pub struct FlightCountNetwork {
@@ -29,11 +30,21 @@ impl FlightCountNetwork {
             self.add_flight(start - 1, end - 1);
         }
     }
+
+    pub fn add_network(&mut self, other: FlightCountNetwork) {
+        for (v1, v2) in self.connections.iter_mut().zip(other.connections) {
+            *v1 += v2;
+        }
+    }
+
+    pub fn connections(self) -> Vec<u32> {
+        self.connections
+    }
 }
 
 #[test]
 fn flight_count_network_works() {
-    let airports: Vec<Airport> = vec![
+    let airports = vec![
         ("Stockholm".to_owned(), "ST".to_owned(), 59.3294, 18.0686, 1).into(),
         ("New York".to_owned(), "NY".to_owned(), 40.641766, -73.780968, 2).into(),
         ("Australia".to_owned(), "AU".to_owned(), -23.8067, 133.9017, 3).into(),

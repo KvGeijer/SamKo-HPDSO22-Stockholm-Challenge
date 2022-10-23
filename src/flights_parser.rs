@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use der_parser::ber::{parse_ber_octetstring, BerObject, BerObjectContent};
 
 #[derive(Debug)]
@@ -12,7 +14,7 @@ pub struct Flight {
 pub struct FlightsParser {}
 
 impl FlightsParser {
-    pub fn parse(file: &str) -> Vec<Flight> {
+    pub fn parse(file: &Path) -> Vec<Flight> {
         // NOTES: Each flight is encoded as an Universal constructed class containing an OctetString
         // with 20 octets. The first two octets are always (4, 8), as are the eleventh and twelfth.
         // Those probably denote the start of each pair in some way? Maybe the internal
