@@ -2,11 +2,12 @@ mod flights_parser;
 mod airports;
 mod network;
 mod clusterer;
+mod plot;
 
-use std::{io, path::Path};
+use std::{path::Path};
 
 use flights_parser::{FlightsParser};
-use airports::{AirportFinder, KdTreeAirportFinder};
+use airports::{KdTreeAirportFinder, Airport};
 
 use clap::Parser;
 use std::time::Instant;
@@ -23,29 +24,29 @@ struct Args {
    path: String
 }
 
-fn main(){
+fn main() {
 
     let args = Args::parse();
     let data_path = Path::new(&args.path);
 
-    let airport_finder = load_airports(&data_path);
-    let flight_graph = process_flights(&data_path, &airport_finder);
-    let topmost_airports = cluster(flight_graph, &airport_finder);
+    let airports = airports::from_csv(&data_path.join("airports.csv"));
+    let airport_finder = create_kd_tree(&airports);
+    let flight_graph = process_flights(&data_path, &airport_finder, &airports);
+    let topmost_airports = cluster(flight_graph, airports.len());
 
     println!("{:?}", topmost_airports);
+    let _ = plot::plot_map(&airports);
 }
 
-fn load_airports(data_path: &Path) -> KdTreeAirportFinder {
+fn create_kd_tree(airports: &Vec<Airport>) -> KdTreeAirportFinder {
     println!("Loading airports..");
     let start = Instant::now();
-    let airport_file = data_path.join("airports.csv");
-    let airports = KdTreeAirportFinder::from_csv(airport_file.as_path());
+    let kdtree = KdTreeAirportFinder::new(airports);
     println!("Loading airport... OK. Time: {:?}", start.elapsed());
-
-    airports
+    kdtree
 }
 
-fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder) -> Vec<f32> {
+fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder, airports: &Vec<Airport>) -> Vec<f32> {
     let start = Instant::now();
     println!("Parsing Networks...");
     // let graphs: Vec<network::FlightCountNetwork> = data_path.read_dir()
@@ -65,7 +66,7 @@ fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder) -> Ve
         let path = entry.unwrap().path();
         if let Some(ext) = path.extension() {
             if ext == "bin" {
-                let file_graph = dissimilarity_from_binary(path.as_path(), &airport_finder);
+                let file_graph = dissimilarity_from_binary(path.as_path(), &airport_finder, airports);
                 graphs.push(file_graph);
             }
         }
@@ -74,7 +75,7 @@ fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder) -> Ve
 
     println!("Adding graphs...");
     let start = Instant::now();
-    let mut graph = network::FlightCountNetwork::new(airport_finder.airport_count());
+    let mut graph = network::FlightCountNetwork::new(airports.len());
     for g in graphs {
         graph.add_network(g)
     }
@@ -91,10 +92,10 @@ fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder) -> Ve
     matrix
 }
 
-fn cluster(flight_graph: Vec<f32>, airport_finder: &KdTreeAirportFinder) -> Vec<String>{
+fn cluster(flight_graph: Vec<f32>, nbr_airports: usize) -> Vec<String>{
     println!("Clustering...");
     let start = Instant::now();
-    let topmost = clusterer::cluster(flight_graph, airport_finder.airport_count(), 5);
+    let topmost = clusterer::cluster(flight_graph, nbr_airports, 5);
     println!("Clustering... OK. Time: {:?}", start.elapsed());
 
     // TODO: Get real string names
@@ -104,7 +105,7 @@ fn cluster(flight_graph: Vec<f32>, airport_finder: &KdTreeAirportFinder) -> Vec<
 
 }
 
-fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &KdTreeAirportFinder)
+fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &KdTreeAirportFinder, airports: &Vec<Airport>)
                                         -> network::FlightCountNetwork {
 
     println!("Parsing binary file...");
@@ -114,12 +115,8 @@ fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &KdTreeAirportFind
 
     println!("Locating airports...");
     let start = Instant::now();
-    let mut dissimilarity_graph = network::FlightCountNetwork::new(airport_finder.airport_count());
+    let mut dissimilarity_graph = network::FlightCountNetwork::new(airports.len());
     dissimilarity_graph.add_flights(&flight_chunk, airport_finder);
     println!("Locating airports... OK. Time: {:?}", start.elapsed());
-
-
-
-
     dissimilarity_graph
 }

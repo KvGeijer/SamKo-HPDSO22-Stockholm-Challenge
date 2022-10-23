@@ -13,3 +13,5 @@ der-parser = "8.1"
 kodama = "0.2.3"
 num-traits = "0.2.15"
 clap = { version = "4.0.18", features = ["derive"] }
+plotters = "0.3.4"
+image = "0.24.4"

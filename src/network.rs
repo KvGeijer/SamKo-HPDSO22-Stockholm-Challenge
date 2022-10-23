@@ -1,6 +1,6 @@
 
 
-use crate::airports::{AirportFinder, KdTreeAirportFinder};
+use crate::airports::{AirportFinder, KdTreeAirportFinder, Airport};
 use crate::flights_parser::{Flight};
 
 pub struct FlightCountNetwork {
@@ -25,8 +25,8 @@ impl FlightCountNetwork {
 
     pub fn add_flights(&mut self, flights: &[Flight], airports: &dyn AirportFinder) {
         for flight in flights {
-            let start = airports.closest(flight.from_lat, flight.from_long).id;
-            let end = airports.closest(flight.to_lat, flight.to_long).id;
+            let start = airports.closest_ind(flight.from_lat, flight.from_long);
+            let end = airports.closest_ind(flight.to_lat, flight.to_long);
             self.add_flight(start - 1, end - 1);
         }
     }
@@ -45,9 +45,9 @@ impl FlightCountNetwork {
 #[test]
 fn flight_count_network_works() {
     let airports = vec![
-        ("Stockholm".to_owned(), "ST".to_owned(), 59.3294, 18.0686, 1).into(),
-        ("New York".to_owned(), "NY".to_owned(), 40.641766, -73.780968, 2).into(),
-        ("Australia".to_owned(), "AU".to_owned(), -23.8067, 133.9017, 3).into(),
+        Airport {name: "Stockholm".to_owned(), abr: "ST".to_owned(), lat: 59.3294, long: 18.0686, id: 1},
+        Airport {name: "New York".to_owned(), abr: "NY".to_owned(), lat: 40.641766, long: -73.780968, id: 2},
+        Airport {name: "Australia".to_owned(), abr: "AU".to_owned(), lat: -23.8067, long: 133.9017, id: 3},
     ];
     let flights = &[
         //Gothenburg to New york
@@ -56,7 +56,7 @@ fn flight_count_network_works() {
         Flight {from_lat: -33.865143, from_long: 151.209900, to_lat: 59.36004, to_long: 18.00086}
     ];
     let mut network = FlightCountNetwork::new(airports.len());
-    let finder = KdTreeAirportFinder::new(airports);
+    let finder = KdTreeAirportFinder::new(&airports);
     network.add_flights(flights, &finder);
     println!("{:?}", network.connections);
     assert_eq!(network.connections, vec![1, 1, 0])
