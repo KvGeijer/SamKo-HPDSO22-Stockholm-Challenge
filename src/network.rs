@@ -1,6 +1,6 @@
 
 
-use crate::airports::{AirportFinder};
+use crate::airports::{AirportFinder, KdTreeAirportFinder};
 use crate::flights_parser::{Flight};
 
 pub struct FlightCountNetwork {
@@ -23,7 +23,7 @@ impl FlightCountNetwork {
         self.connections[ind] += 1;
     }
 
-    pub fn add_flights(&mut self, flights: &[Flight], airports: &AirportFinder) {
+    pub fn add_flights(&mut self, flights: &[Flight], airports: &dyn AirportFinder) {
         for flight in flights {
             let start = airports.closest(flight.from_lat, flight.from_long).id;
             let end = airports.closest(flight.to_lat, flight.to_long).id;
@@ -56,7 +56,7 @@ fn flight_count_network_works() {
         Flight {from_lat: -33.865143, from_long: 151.209900, to_lat: 59.36004, to_long: 18.00086}
     ];
     let mut network = FlightCountNetwork::new(airports.len());
-    let finder = AirportFinder::new(airports);
+    let finder = KdTreeAirportFinder::new(airports);
     network.add_flights(flights, &finder);
     println!("{:?}", network.connections);
     assert_eq!(network.connections, vec![1, 1, 0])

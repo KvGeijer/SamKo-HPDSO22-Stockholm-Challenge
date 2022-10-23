@@ -24,18 +24,22 @@ impl From<(String, String, f32, f32, usize)> for Airport {
     }
 }
 
+pub trait AirportFinder {
+    fn closest(&self, lat: f32, long: f32) -> &Airport;
+}
+
 impl KdPoint for Airport {
     type Scalar = f32;
     type Dim = typenum::U3;
     fn at(&self, k: usize) -> f32 { self.pos[k] }
 }
 
-pub struct AirportFinder {
+pub struct KdTreeAirportFinder {
     tree: KdTree<Airport>,
     len: usize,
 }
 
-impl AirportFinder {
+impl KdTreeAirportFinder {
     pub fn new(airports: Vec<Airport>) -> Self {
         Self { len: airports.len(), tree: KdTree::build_by_ordered_float(airports) }
     }
@@ -57,8 +61,10 @@ impl AirportFinder {
         .collect();
         Self::new(airports)
     }
+}
 
-    pub fn closest(&self, lat: f32, long: f32) -> &Airport {
+impl AirportFinder for KdTreeAirportFinder {
+    fn closest(&self, lat: f32, long: f32) -> &Airport {
         let point = lat_long_to_point(lat, long);
         self.tree.nearest(&point).expect("embty").item
     }

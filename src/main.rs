@@ -6,7 +6,7 @@ mod clusterer;
 use std::{io, path::Path};
 
 use flights_parser::{FlightsParser};
-use airports::{AirportFinder};
+use airports::{KdTreeAirportFinder};
 
 use clap::Parser;
 use std::time::Instant;
@@ -30,7 +30,7 @@ fn main() -> io::Result<()> {
     println!("loading airports..");
     let start = Instant::now();
     let airport_file = data.join("airports.csv");
-    let airports = AirportFinder::from_csv(airport_file.as_path());
+    let airports = KdTreeAirportFinder::from_csv(airport_file.as_path());
     println!("Time: {:?}", start.elapsed());
 
     let start = Instant::now();
