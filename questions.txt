@@ -1,3 +1,4 @@
 - Does the airports.csv file always look the same? If so, can we make it "part of the program?"
 - How presise does the heirartical clustering need to be?
 - Does the bonus question add to the score? in what?
+- the links don't work

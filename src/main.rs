@@ -27,12 +27,13 @@ fn main() -> io::Result<()> {
     let args = Args::parse();
     let data = Path::new(&args.path);
 
+    println!("loading airports..");
     let airport_file = data.join("airports.csv");
     let airports = AirportFinder::from_csv(airport_file.as_path());
 
 
     let mut graphs = vec![];
-
+    println!("Parsing Networks...");
     for entry in data.read_dir()? {
         let path = entry?.path();
         if let Some(ext) = path.extension() {
@@ -44,13 +45,13 @@ fn main() -> io::Result<()> {
             }
         }
     }
-
+    println!("Adding results...");
     let mut graph = network::FlightCountNetwork::new(airports.airport_count());
     for g in graphs {
         graph.add_network(g)
     }
-
     let matrix = graph.connections().iter().map(|x| *x as f32).collect();
+    println!("Clustering...");
     let res = clusterer::cluster(matrix, airports.airport_count(), 5);
     println!("{:?}", res);
     Ok(())

@@ -19,7 +19,7 @@ impl FlightCountNetwork {
     fn add_flight(&mut self, n1: usize, n2: usize) {
         let (i, j) = if n1 > n2 { (n2, n1) } else { (n1, n2) };
         //println!("i: {}, j: {}, n: {}", i, j, self.n);
-        let ind = self.n*(i + 1) - (i*i - i)/2 - j - 1;
+        let ind = (self.n - 1)*(i + 1) - (i*i - i)/2 - j - i;
         self.connections[ind] += 1;
     }
 
