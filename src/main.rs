@@ -7,10 +7,12 @@ mod plot;
 use std::{path::Path};
 
 use flights_parser::{FlightsParser};
-use airports::{KdTreeAirportFinder, Airport};
+use airports::{KdTreeAirportFinder, Airport, AirportFinder};
 
 use clap::Parser;
 use std::time::Instant;
+
+use crate::airports::HashAirportFinder;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -46,7 +48,7 @@ fn create_kd_tree(airports: &Vec<Airport>) -> KdTreeAirportFinder {
     kdtree
 }
 
-fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder, airports: &Vec<Airport>) -> Vec<f32> {
+fn process_flights(data_path: &Path, airport_finder: &dyn AirportFinder, airports: &Vec<Airport>) -> Vec<f32> {
     let start = Instant::now();
     println!("Parsing Networks...");
     // let graphs: Vec<network::FlightCountNetwork> = data_path.read_dir()
@@ -66,7 +68,7 @@ fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder, airpo
         let path = entry.unwrap().path();
         if let Some(ext) = path.extension() {
             if ext == "bin" {
-                let file_graph = dissimilarity_from_binary(path.as_path(), &airport_finder, airports);
+                let file_graph = dissimilarity_from_binary(path.as_path(), airport_finder, airports);
                 graphs.push(file_graph);
             }
         }
@@ -105,7 +107,7 @@ fn cluster(flight_graph: Vec<f32>, nbr_airports: usize) -> Vec<String>{
 
 }
 
-fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &KdTreeAirportFinder, airports: &Vec<Airport>)
+fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &dyn AirportFinder, airports: &Vec<Airport>)
                                         -> network::FlightCountNetwork {
 
     println!("Parsing binary file...");

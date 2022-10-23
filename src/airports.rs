@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, collections::HashMap};
 
 use quick_csv;
 use kd_tree::{KdMap};
@@ -54,6 +54,45 @@ impl AirportFinder for KdTreeAirportFinder {
     fn closest_ind(&self, lat: f32, long: f32) -> usize {
         let point = lat_long_to_point(lat, long);
         self.tree.nearest(&point).expect("embty").item.1
+    }
+}
+
+
+pub struct HashAirportFinder {
+    map: HashMap<[i32; 2], usize>
+}
+
+impl HashAirportFinder {
+    pub fn new(airports: &Vec<Airport>) -> Self {
+        let mut map = HashMap::new();
+        for (i, airport) in airports.iter().enumerate() {
+            
+            let key = Self::bucket_coord(airport.lat, airport.long);
+            let res = map.insert(key, i);
+            if let Some(_) = res {
+                panic!("Two different airports had same bucket hash!!! Change code to KdTreeFinder")
+            }
+        }
+        Self { map }
+    }
+
+    fn bucket(v: f32) -> i32 {
+        const RESULUTION: f32 = 1e6;
+        (v*RESULUTION) as i32
+    }
+
+    fn bucket_coord(lat: f32, long: f32) -> [i32; 2] {
+        [Self::bucket(lat), Self::bucket(long)]
+    }
+}
+
+impl AirportFinder for HashAirportFinder {
+    fn closest_ind(&self, lat: f32, long: f32) -> usize {
+        let bucket = Self::bucket_coord(lat, long);
+        match self.map.get(&bucket) {
+            Some(v) => *v,
+            None => panic!("Cound not find bucket, change code to KdTreeFinder")
+        }
     }
 }
 
