@@ -36,41 +36,57 @@ fn main(){
 }
 
 fn load_airports(data_path: &Path) -> KdTreeAirportFinder {
-    println!("loading airports..");
+    println!("Loading airports..");
     let start = Instant::now();
     let airport_file = data_path.join("airports.csv");
     let airports = KdTreeAirportFinder::from_csv(airport_file.as_path());
-    println!("Time: {:?}", start.elapsed());
+    println!("Loading airport... OK. Time: {:?}", start.elapsed());
 
     airports
 }
 
 fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder) -> Vec<f32> {
     let start = Instant::now();
-    let mut graphs = vec![];
     println!("Parsing Networks...");
+    // let graphs: Vec<network::FlightCountNetwork> = data_path.read_dir()
+    //     .unwrap()
+    //     .into_iter()
+    //     .map(|entry| entry.unwrap().path())
+    //     .filter(|path| {    // Filter to onli binary files TODO: Make better
+    //         if let Some(ext) = path.extension() {
+    //             ext == ".bin"
+    //         } else { false }
+    //     })
+    //     .map(|path| dissimilarity_from_binary(path.as_path(), &airport_finder))
+    //     .collect();
+
+    let mut graphs = vec![];
     for entry in data_path.read_dir().unwrap() {
         let path = entry.unwrap().path();
         if let Some(ext) = path.extension() {
             if ext == "bin" {
-                let flight_chunk = FlightsParser::parse(path.as_path());
-                let mut graph_chunk = network::FlightCountNetwork::new(airport_finder.airport_count());
-                graph_chunk.add_flights(&flight_chunk, airport_finder);
-                graphs.push(graph_chunk);
+                let file_graph = dissimilarity_from_binary(path.as_path(), &airport_finder);
+                graphs.push(file_graph);
             }
         }
     }
-    println!("Time: {:?}", start.elapsed());
+    println!("Parsing Networks... OK. Time: {:?}", start.elapsed());
 
-    println!("Adding results...");
+    println!("Adding graphs...");
     let start = Instant::now();
     let mut graph = network::FlightCountNetwork::new(airport_finder.airport_count());
     for g in graphs {
         graph.add_network(g)
     }
+    println!("Adding graphs... OK. Time: {:?}", start.elapsed());
+
     println!("Converting...");
-    let matrix = graph.connections().iter().map(|x| *x as f32).collect();
-    println!("Time: {:?}", start.elapsed());
+    let start = Instant::now();
+    let matrix = graph.connections()
+        .iter()
+        .map(|x| *x as f32)
+        .collect();
+    println!("Converting... OK. Time: {:?}", start.elapsed());
 
     matrix
 }
@@ -79,11 +95,31 @@ fn cluster(flight_graph: Vec<f32>, airport_finder: &KdTreeAirportFinder) -> Vec<
     println!("Clustering...");
     let start = Instant::now();
     let topmost = clusterer::cluster(flight_graph, airport_finder.airport_count(), 5);
-    println!("Time: {:?}", start.elapsed());
+    println!("Clustering... OK. Time: {:?}", start.elapsed());
 
     // TODO: Get real string names
     topmost.iter()
         .map(|ind| ind.to_string())
         .collect()
 
+}
+
+fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &KdTreeAirportFinder)
+                                        -> network::FlightCountNetwork {
+
+    println!("Parsing binary file...");
+    let start = Instant::now();
+    let flight_chunk = FlightsParser::parse(bin_path);
+    println!("Parsing binary file... OK. Time: {:?}", start.elapsed());
+
+    println!("Locating airports...");
+    let start = Instant::now();
+    let mut dissimilarity_graph = network::FlightCountNetwork::new(airport_finder.airport_count());
+    dissimilarity_graph.add_flights(&flight_chunk, airport_finder);
+    println!("Locating airports... OK. Time: {:?}", start.elapsed());
+
+
+
+
+    dissimilarity_graph
 }
