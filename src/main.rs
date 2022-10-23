@@ -4,7 +4,8 @@ mod network;
 mod clusterer;
 mod plot;
 
-use std::{path::Path};
+use std::{io, thread, path::Path};
+use std::sync::{Mutex, Arc};
 
 use flights_parser::{FlightsParser};
 use airports::{KdTreeAirportFinder, Airport};
@@ -29,8 +30,8 @@ fn main() {
     let args = Args::parse();
     let data_path = Path::new(&args.path);
 
-    let airports = airports::from_csv(&data_path.join("airports.csv"));
-    let airport_finder = create_kd_tree(&airports);
+    let airports = Arc::new(airports::from_csv(&data_path.join("airports.csv")));
+    let airport_finder = Arc::new(create_kd_tree(&airports));
     let flight_graph = process_flights(&data_path, &airport_finder, &airports);
     let topmost_airports = cluster(flight_graph, airports.len());
 
@@ -46,47 +47,47 @@ fn create_kd_tree(airports: &Vec<Airport>) -> KdTreeAirportFinder {
     kdtree
 }
 
-fn process_flights(data_path: &Path, airport_finder: &KdTreeAirportFinder, airports: &Vec<Airport>) -> Vec<f32> {
+fn process_flights(data_path: &Path, airport_finder: &Arc<KdTreeAirportFinder>, airports: &Arc<Vec<Airport>>) -> Vec<f32> {
     let start = Instant::now();
-    println!("Parsing Networks...");
-    // let graphs: Vec<network::FlightCountNetwork> = data_path.read_dir()
-    //     .unwrap()
-    //     .into_iter()
-    //     .map(|entry| entry.unwrap().path())
-    //     .filter(|path| {    // Filter to onli binary files TODO: Make better
-    //         if let Some(ext) = path.extension() {
-    //             ext == ".bin"
-    //         } else { false }
-    //     })
-    //     .map(|path| dissimilarity_from_binary(path.as_path(), &airport_finder))
-    //     .collect();
+    println!("Parsing and adding Networks...");
 
-    let mut graphs = vec![];
+    let combiner = Arc::new(Mutex::new(network::FlightCountNetwork::new(airports.len())));
+    let mut running_threads = vec![];
+
+    // Iterate over binary files and convert them into matrices
+    // Multithreaded: Each threads adds into the combiner network with Mutex
     for entry in data_path.read_dir().unwrap() {
         let path = entry.unwrap().path();
         if let Some(ext) = path.extension() {
             if ext == "bin" {
-                let file_graph = dissimilarity_from_binary(path.as_path(), &airport_finder, airports);
-                graphs.push(file_graph);
+                let combiner_clone = combiner.clone();
+                let finder_clone = airport_finder.clone();
+                let airports_clone = airports.clone();
+                let running_thread =
+                    thread::spawn(move || {
+                        let file_graph = dissimilarity_from_binary(path.as_path(),
+                                                                   &finder_clone,
+                                                                   &airports_clone);
+                        combiner_clone.lock()
+                            .unwrap()
+                            .add_network(file_graph);
+                    });
+                running_threads.push(running_thread);
             }
         }
     }
-    println!("Parsing Networks... OK. Time: {:?}", start.elapsed());
 
-    println!("Adding graphs...");
-    let start = Instant::now();
-    let mut graph = network::FlightCountNetwork::new(airports.len());
-    for g in graphs {
-        graph.add_network(g)
+    for thread in running_threads {
+        thread.join().unwrap();
     }
-    println!("Adding graphs... OK. Time: {:?}", start.elapsed());
+    println!("Parsing and adding Networks... OK. Time: {:?}", start.elapsed());
+
 
     println!("Converting...");
     let start = Instant::now();
-    let matrix = graph.connections()
-        .iter()
-        .map(|x| *x as f32)
-        .collect();
+    let matrix = combiner.lock()
+        .unwrap()
+        .to_float_vec();
     println!("Converting... OK. Time: {:?}", start.elapsed());
 
     matrix
