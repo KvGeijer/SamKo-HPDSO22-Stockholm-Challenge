@@ -1,16 +1,17 @@
-
-
 use crate::airports::{AirportFinder, KdTreeAirportFinder, Airport};
 use crate::flights_parser::{Flight};
+
+use std::time::Instant;
 
 pub struct FlightCountNetwork {
     connections: Vec<u32>,
     n: usize,
 }
 
+
 impl FlightCountNetwork {
     pub fn new(n: usize) -> Self {
-        return Self {
+        Self {
             n,
             connections: vec![0; n*(n - 1)/2]
         }
@@ -32,15 +33,22 @@ impl FlightCountNetwork {
     }
 
     pub fn add_network(&mut self, other: FlightCountNetwork) {
+        println!("Adding graphs...");
+        let start = Instant::now();
         for (v1, v2) in self.connections.iter_mut().zip(other.connections) {
             *v1 += v2;
         }
+        println!("Adding graphs... OK. Time: {:?}", start.elapsed());
     }
 
-    pub fn connections(self) -> Vec<u32> {
+    pub fn to_float_vec(&self) -> Vec<f32> {
         self.connections
+            .iter()
+            .map(|unsigned| *unsigned as f32)
+            .collect()
     }
 }
+
 
 #[test]
 fn flight_count_network_works() {

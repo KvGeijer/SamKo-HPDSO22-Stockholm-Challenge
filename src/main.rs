@@ -4,15 +4,23 @@ mod network;
 mod clusterer;
 mod plot;
 
-use std::{path::Path};
+use std::{thread, path::{Path, PathBuf}};
+use std::sync::{Mutex, Arc};
 
 use flights_parser::{FlightsParser};
-use airports::{KdTreeAirportFinder, Airport, AirportFinder};
+use airports::{KdTreeAirportFinder, Airport, AirportFinder, HashAirportFinder};
 
 use clap::Parser;
 use std::time::Instant;
 
-use crate::airports::HashAirportFinder;
+type UsedAirportFinder = HashAirportFinder;
+
+// How many threads to use. Could make it possible to change through command line
+macro_rules! THREADS {
+    () => {
+        16
+    };
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -30,65 +38,91 @@ fn main() {
 
     let args = Args::parse();
     let data_path = Path::new(&args.path);
+    let bin_files = find_bin_files(&data_path);
 
     let airports = airports::from_csv(&data_path.join("airports.csv"));
-    let airport_finder = create_kd_tree(&airports);
-    let flight_graph = process_flights(&data_path, &airport_finder, &airports);
+    let airport_finder = Arc::new(create_kd_tree(&airports));
+    let flight_graph = process_flights(bin_files, airport_finder, airports.len());
     let topmost_airports = cluster(flight_graph, airports.len());
 
     println!("{:?}", topmost_airports);
     let _ = plot::plot_map(&airports);
 }
 
-fn create_kd_tree(airports: &Vec<Airport>) -> KdTreeAirportFinder {
+fn create_kd_tree(airports: &Vec<Airport>) -> UsedAirportFinder {
     println!("Loading airports..");
     let start = Instant::now();
-    let kdtree = KdTreeAirportFinder::new(airports);
+    let kdtree = UsedAirportFinder::new(airports);
     println!("Loading airport... OK. Time: {:?}", start.elapsed());
     kdtree
 }
 
-fn process_flights(data_path: &Path, airport_finder: &dyn AirportFinder, airports: &Vec<Airport>) -> Vec<f32> {
-    let start = Instant::now();
-    println!("Parsing Networks...");
-    // let graphs: Vec<network::FlightCountNetwork> = data_path.read_dir()
-    //     .unwrap()
-    //     .into_iter()
-    //     .map(|entry| entry.unwrap().path())
-    //     .filter(|path| {    // Filter to onli binary files TODO: Make better
-    //         if let Some(ext) = path.extension() {
-    //             ext == ".bin"
-    //         } else { false }
-    //     })
-    //     .map(|path| dissimilarity_from_binary(path.as_path(), &airport_finder))
-    //     .collect();
+fn find_bin_files(data_path: &Path) -> Vec<PathBuf> {
+    // TODO: be able to take several folders as specified in challenge.
+    // TODO: re-write as functional!
+    let mut bins = vec![];
 
-    let mut graphs = vec![];
     for entry in data_path.read_dir().unwrap() {
         let path = entry.unwrap().path();
         if let Some(ext) = path.extension() {
             if ext == "bin" {
-                let file_graph = dissimilarity_from_binary(path.as_path(), airport_finder, airports);
-                graphs.push(file_graph);
+                bins.push(path);
             }
         }
     }
-    println!("Parsing Networks... OK. Time: {:?}", start.elapsed());
 
-    println!("Adding graphs...");
+    bins
+}
+
+fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinder>,
+                   nbr_airports: usize) -> Vec<f32> {
     let start = Instant::now();
-    let mut graph = network::FlightCountNetwork::new(airports.len());
-    for g in graphs {
-        graph.add_network(g)
+    println!("Parsing and adding Networks...");
+
+    let nbr_threads = std::cmp::min(THREADS!(), bin_files.len());
+    let files_per_thread = (bin_files.len() + nbr_threads - 1)/nbr_threads;
+    let bin_file_chunks = bin_files
+        .chunks(files_per_thread)
+        .map(|chunk_slice| chunk_slice.to_vec());   // Convert slice to vec so thay are owned
+
+    let mut running_threads = Vec::with_capacity(nbr_threads);
+
+    let combiner = Arc::new(Mutex::new(network::FlightCountNetwork::new(nbr_airports)));
+
+    // Iterate over binary files and convert them into matrices
+    // Multithreaded: Each threads adds into the combiner network with Mutex
+    for thread_bin_files in bin_file_chunks {
+        let combiner_clone = combiner.clone();
+        let finder_clone = airport_finder.clone();
+        let running_thread =
+            // TODO: Factor out thread run function!
+            thread::spawn(move || {
+                let mut file_graph = network::FlightCountNetwork::new(nbr_airports);
+                // Combine all your files into one graph
+                for bin_path in thread_bin_files {
+                    file_graph = dissimilarity_from_binary(file_graph,
+                                                           &bin_path.as_path(),
+                                                           &finder_clone);
+                }
+                // Add your total graph to the collective one
+                combiner_clone.lock()
+                    .unwrap()
+                    .add_network(file_graph);
+            });
+        running_threads.push(running_thread);
     }
-    println!("Adding graphs... OK. Time: {:?}", start.elapsed());
+
+    for thread in running_threads {
+        thread.join().unwrap();
+    }
+    println!("Parsing and adding Networks... OK. Time: {:?}", start.elapsed());
+
 
     println!("Converting...");
     let start = Instant::now();
-    let matrix = graph.connections()
-        .iter()
-        .map(|x| *x as f32)
-        .collect();
+    let matrix = combiner.lock()
+        .unwrap()
+        .to_float_vec();
     println!("Converting... OK. Time: {:?}", start.elapsed());
 
     matrix
@@ -107,8 +141,8 @@ fn cluster(flight_graph: Vec<f32>, nbr_airports: usize) -> Vec<String>{
 
 }
 
-fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &dyn AirportFinder, airports: &Vec<Airport>)
-                                        -> network::FlightCountNetwork {
+fn dissimilarity_from_binary(mut dissimilarity_graph: network::FlightCountNetwork, bin_path: &Path,
+                             airport_finder: &UsedAirportFinder) -> network::FlightCountNetwork {
 
     println!("Parsing binary file...");
     let start = Instant::now();
@@ -117,7 +151,6 @@ fn dissimilarity_from_binary(bin_path: &Path, airport_finder: &dyn AirportFinder
 
     println!("Locating airports...");
     let start = Instant::now();
-    let mut dissimilarity_graph = network::FlightCountNetwork::new(airports.len());
     dissimilarity_graph.add_flights(&flight_chunk, airport_finder);
     println!("Locating airports... OK. Time: {:?}", start.elapsed());
     dissimilarity_graph
