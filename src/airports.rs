@@ -26,6 +26,7 @@ impl From<(String, String, f32, f32, usize)> for Airport {
 
 pub trait AirportFinder {
     fn closest(&self, lat: f32, long: f32) -> &Airport;
+    fn airport_count(&self) -> usize;
 }
 
 impl KdPoint for Airport {
@@ -42,10 +43,6 @@ pub struct KdTreeAirportFinder {
 impl KdTreeAirportFinder {
     pub fn new(airports: Vec<Airport>) -> Self {
         Self { len: airports.len(), tree: KdTree::build_by_ordered_float(airports) }
-    }
-
-    pub fn airport_count(&self) -> usize {
-        self.len
     }
 
     pub fn from_csv(path: &Path) -> Self {
@@ -68,8 +65,11 @@ impl AirportFinder for KdTreeAirportFinder {
         let point = lat_long_to_point(lat, long);
         self.tree.nearest(&point).expect("embty").item
     }
-}
 
+    fn airport_count(&self) -> usize {
+        self.len
+    }
+}
 
 fn lat_long_to_point(lat: f32, long: f32) -> [f32; 3] {
     //TODO if lat/long are very close to read data, then we could just do rounding + hashmap

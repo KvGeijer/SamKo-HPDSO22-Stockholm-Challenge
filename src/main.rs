@@ -6,7 +6,7 @@ mod clusterer;
 use std::{io, path::Path};
 
 use flights_parser::{FlightsParser};
-use airports::{KdTreeAirportFinder};
+use airports::{AirportFinder, KdTreeAirportFinder};
 
 use clap::Parser;
 use std::time::Instant;
