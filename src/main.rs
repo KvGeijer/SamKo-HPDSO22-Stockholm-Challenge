@@ -174,28 +174,27 @@ fn test_airport_finding() {
         .take(1000)
         .collect();
 
-
+    // Assert all finders give the same results
     for flight in flights.iter() {
-        // let start_hash = airport_finder_hash.closest_ind(flight.from_lat, flight.from_long);
-        // let end_has = airport_finder_hash.closest_ind(flight.to_lat, flight.to_long);
+        let start_hash = airport_finder_hash.closest_ind(flight.from_lat, flight.from_long);
+        let end_hash = airport_finder_hash.closest_ind(flight.to_lat, flight.to_long);
 
-        // let start_tree = airport_finder_tree.closest_ind(flight.from_lat, flight.from_long);
-        // let end_tree = airport_finder_tree.closest_ind(flight.to_lat, flight.to_long);
+        let start_tree = airport_finder_tree.closest_ind(flight.from_lat, flight.from_long);
+        let end_tree = airport_finder_tree.closest_ind(flight.to_lat, flight.to_long);
 
-        // let start_loop = airport_finder_loop.closest_ind(flight.from_lat, flight.from_long);
-        // let end_loop = airport_finder_loop.closest_ind(flight.to_lat, flight.to_long);
+        let start_loop = airport_finder_loop.closest_ind(flight.from_lat, flight.from_long);
+        let end_loop = airport_finder_loop.closest_ind(flight.to_lat, flight.to_long);
 
-        // assert_eq!(start_hash, start_loop, start_tree);
-        // assert_eq!()
+        assert_eq!(start_hash, start_loop);
+        assert_eq!(start_hash, start_tree);
+        assert_eq!(end_hash, end_loop);
+        assert_eq!(end_hash, end_tree);
     }
 
     // Get the upper triangular flight graph
     let mut dissimilarity_graph = network::FlightCountNetwork::new(airports.len());
     dissimilarity_graph.add_flights(&flights, airport_finder);
     let original_upper_triangular = dissimilarity_graph.to_u32_vec();
-
-    // Should have added as many as we have flights
-    assert_eq!(flights.len() as u32, original_upper_triangular.iter().sum());
 
     // Now get it by not doing upper triangular version
     // Initialize
@@ -208,6 +207,11 @@ fn test_airport_finding() {
     for flight in flights.iter() {
         let start = airport_finder.closest_ind(flight.from_lat, flight.from_long);
         let end = airport_finder.closest_ind(flight.to_lat, flight.to_long);
+        if start == end {
+            // Mirror functionality in network
+            continue;
+        }
+
         simple_matrix[start][end] += 1;
         simple_matrix[end][start] += 1;
         if start == end {
@@ -227,10 +231,6 @@ fn test_airport_finding() {
         }
     }
     assert_eq!(original_upper_triangular.len(), ind);
-
-    // Should have added as many as we have flights
-    // Does not work as we add a bunch to the diagonal...
-    //assert_eq!(flights.len() as u32, simple_upper_triangular.iter().sum());
 
     // They should be equal!
     assert_eq!(original_upper_triangular.iter().sum::<u32>(), simple_upper_triangular.iter().sum::<u32>());
