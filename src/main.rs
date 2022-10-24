@@ -7,13 +7,13 @@ mod plot;
 use std::{thread, path::{Path, PathBuf}};
 use std::sync::{Mutex, Arc};
 
-use flights_parser::{FlightsParser};
-use airports::{KdTreeAirportFinder, Airport, AirportFinder, HashAirportFinder};
+use flights_parser::{FlightsParser, Flight};
+use airports::{KdTreeAirportFinder, Airport, AirportFinder, HashAirportFinder, DoubleLoopAirportFinder};
 
 use clap::Parser;
 use std::time::Instant;
 
-type UsedAirportFinder = HashAirportFinder;
+type UsedAirportFinder = KdTreeAirportFinder;
 
 // How many threads to use. Could make it possible to change through command line
 macro_rules! THREADS {
@@ -41,7 +41,7 @@ fn main() {
     let bin_files = find_bin_files(&data_path);
 
     let airports = airports::from_csv(&data_path.join("airports.csv"));
-    let airport_finder = Arc::new(create_kd_tree(&airports));
+    let airport_finder = Arc::new(create_airport_finder(&airports));
     let flight_graph = process_flights(bin_files, airport_finder, airports.len());
     let topmost_airports = cluster(flight_graph, airports.len());
 
@@ -49,7 +49,7 @@ fn main() {
     let _ = plot::plot_map(&airports);
 }
 
-fn create_kd_tree(airports: &Vec<Airport>) -> UsedAirportFinder {
+fn create_airport_finder(airports: &Vec<Airport>) -> UsedAirportFinder {
     println!("Loading airports..");
     let start = Instant::now();
     let kdtree = UsedAirportFinder::new(airports);
@@ -146,12 +146,94 @@ fn dissimilarity_from_binary(mut dissimilarity_graph: network::FlightCountNetwor
 
     println!("Parsing binary file...");
     let start = Instant::now();
-    let flight_chunk = FlightsParser::parse(bin_path);
+    let flights = FlightsParser::parse(bin_path);
     println!("Parsing binary file... OK. Time: {:?}", start.elapsed());
 
     println!("Locating airports...");
     let start = Instant::now();
-    dissimilarity_graph.add_flights(&flight_chunk, airport_finder);
+    dissimilarity_graph.add_flights(&flights, airport_finder);
     println!("Locating airports... OK. Time: {:?}", start.elapsed());
     dissimilarity_graph
+}
+
+#[test]
+fn test_airport_finding() {
+    // Compare two methods of testing
+
+    let airports = airports::from_csv(&Path::new("data/airports.csv"));
+
+    // Compare different implementations
+    let airport_finder_tree = KdTreeAirportFinder::new(&airports);
+    let airport_finder_hash = HashAirportFinder::new(&airports);
+    let airport_finder_loop = DoubleLoopAirportFinder::new(&airports);
+    let airport_finder = &airport_finder_hash;
+
+    // Only take a 1000 since loop is so incredibly slow
+    let flights:Vec<Flight> = FlightsParser::parse(&Path::new("data/dat.bin"))
+        .into_iter()
+        .take(1000)
+        .collect();
+
+
+    for flight in flights.iter() {
+        // let start_hash = airport_finder_hash.closest_ind(flight.from_lat, flight.from_long);
+        // let end_has = airport_finder_hash.closest_ind(flight.to_lat, flight.to_long);
+
+        // let start_tree = airport_finder_tree.closest_ind(flight.from_lat, flight.from_long);
+        // let end_tree = airport_finder_tree.closest_ind(flight.to_lat, flight.to_long);
+
+        // let start_loop = airport_finder_loop.closest_ind(flight.from_lat, flight.from_long);
+        // let end_loop = airport_finder_loop.closest_ind(flight.to_lat, flight.to_long);
+
+        // assert_eq!(start_hash, start_loop, start_tree);
+        // assert_eq!()
+    }
+
+    // Get the upper triangular flight graph
+    let mut dissimilarity_graph = network::FlightCountNetwork::new(airports.len());
+    dissimilarity_graph.add_flights(&flights, airport_finder);
+    let original_upper_triangular = dissimilarity_graph.to_u32_vec();
+
+    // Should have added as many as we have flights
+    assert_eq!(flights.len() as u32, original_upper_triangular.iter().sum());
+
+    // Now get it by not doing upper triangular version
+    // Initialize
+    let mut simple_matrix = vec![];
+    for _ in 0..airports.len() {
+        simple_matrix.push(vec![0; airports.len()]);
+    }
+    // Add all flights symetrically
+    let mut nbr_invalids = 0;
+    for flight in flights.iter() {
+        let start = airport_finder.closest_ind(flight.from_lat, flight.from_long);
+        let end = airport_finder.closest_ind(flight.to_lat, flight.to_long);
+        simple_matrix[start][end] += 1;
+        simple_matrix[end][start] += 1;
+        if start == end {
+            nbr_invalids += 1;
+            println!("From and to the same place!? {} & {}", start, end);
+            println!("Lat and long for point: {} {} to {} {}", flight.from_lat, flight.from_long, flight.to_lat, flight.to_long);
+        }
+    }
+    assert_eq!(nbr_invalids, 0);
+    // Convert to upper triangular represented as vector
+    let mut simple_upper_triangular = vec![0; original_upper_triangular.len()];
+    let mut ind = 0;
+    for row in 0..airports.len() {
+        for col in (row + 1)..airports.len() {
+            simple_upper_triangular[ind] = simple_matrix[row][col];
+            ind += 1;
+        }
+    }
+    assert_eq!(original_upper_triangular.len(), ind);
+
+    // Should have added as many as we have flights
+    // Does not work as we add a bunch to the diagonal...
+    //assert_eq!(flights.len() as u32, simple_upper_triangular.iter().sum());
+
+    // They should be equal!
+    assert_eq!(original_upper_triangular.iter().sum::<u32>(), simple_upper_triangular.iter().sum::<u32>());
+    assert_eq!(original_upper_triangular, simple_upper_triangular);
+
 }

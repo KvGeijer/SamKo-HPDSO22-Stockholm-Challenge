@@ -66,7 +66,7 @@ impl HashAirportFinder {
     pub fn new(airports: &Vec<Airport>) -> Self {
         let mut map = HashMap::new();
         for (i, airport) in airports.iter().enumerate() {
-            
+
             let key = Self::bucket_coord(airport.lat, airport.long);
             let res = map.insert(key, i);
             if let Some(_) = res {
@@ -93,6 +93,44 @@ impl AirportFinder for HashAirportFinder {
             Some(v) => *v,
             None => panic!("Cound not find bucket, change code to KdTreeFinder")
         }
+    }
+}
+
+
+pub struct DoubleLoopAirportFinder {
+    airports: Vec<[f32; 3]>,
+}
+
+impl DoubleLoopAirportFinder {
+    pub fn new(airports: &Vec<Airport>) -> Self {
+        let coords = airports.iter()
+            .map(|airport| lat_long_to_point(airport.lat, airport.long))
+            .collect();
+        Self {
+            airports: coords
+        }
+    }
+}
+
+impl AirportFinder for DoubleLoopAirportFinder {
+    fn closest_ind(&self, lat: f32, long: f32) -> usize {
+        let flight_point = lat_long_to_point(lat, long);
+
+        let distances: Vec<f32> = self.airports
+            .iter()
+            .map(|airport_coords| flight_point
+                    .iter()
+                    .zip(airport_coords.iter())
+                    .map(|(x, y)| (*x-*y)*(*x-*y))
+                    .sum::<f32>()
+                )
+            .collect();
+
+        distances.iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| b.total_cmp(a))
+            .map(|(index, _)| index)
+            .unwrap()
     }
 }
 

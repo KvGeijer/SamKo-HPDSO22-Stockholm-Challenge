@@ -47,6 +47,11 @@ impl FlightCountNetwork {
             .map(|unsigned| *unsigned as f32)
             .collect()
     }
+
+    #[allow(dead_code)]
+    pub fn to_u32_vec(self) -> Vec<u32> {
+        self.connections
+    }
 }
 
 
