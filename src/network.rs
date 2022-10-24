@@ -76,3 +76,28 @@ fn flight_count_network_works() {
     println!("{:?}", network.connections);
     assert_eq!(network.connections, vec![1, 1, 0])
 }
+
+#[test]
+fn index_map_test() {
+    // Make a 5x5 matrix and insert things at a few points, then make sure it is correct
+    // - 1 2 0 3 0
+    // - - 4 0 0 5
+    // - - - 6 0 7
+    // - - - - 8 9
+    // - - - - - 10
+    // - - - - - -
+    let mut network = FlightCountNetwork::new(6);
+    for _ in 0..1 { network.add_flight(0, 1); }
+    for _ in 0..2 { network.add_flight(0, 2); }
+    for _ in 0..3 { network.add_flight(0, 4); }
+    for _ in 0..4 { network.add_flight(1, 2); }
+    for _ in 0..5 { network.add_flight(1, 5); }
+    for _ in 0..6 { network.add_flight(2, 3); }
+    for _ in 0..7 { network.add_flight(2, 5); }
+    for _ in 0..8 { network.add_flight(3, 4); }
+    for _ in 0..9 { network.add_flight(3, 5); }
+    for _ in 0..10 { network.add_flight(4, 5); }
+
+    let theoretical = vec![1,2,0,3,0,4,0,0,5,6,0,7,8,9,10];
+    assert_eq!(theoretical, network.to_u32_vec());
+}

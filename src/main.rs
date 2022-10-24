@@ -203,7 +203,6 @@ fn test_airport_finding() {
         simple_matrix.push(vec![0; airports.len()]);
     }
     // Add all flights symetrically
-    let mut nbr_invalids = 0;
     for flight in flights.iter() {
         let start = airport_finder.closest_ind(flight.from_lat, flight.from_long);
         let end = airport_finder.closest_ind(flight.to_lat, flight.to_long);
@@ -215,12 +214,10 @@ fn test_airport_finding() {
         simple_matrix[start][end] += 1;
         simple_matrix[end][start] += 1;
         if start == end {
-            nbr_invalids += 1;
             println!("From and to the same place!? {} & {}", start, end);
             println!("Lat and long for point: {} {} to {} {}", flight.from_lat, flight.from_long, flight.to_lat, flight.to_long);
         }
     }
-    assert_eq!(nbr_invalids, 0);
     // Convert to upper triangular represented as vector
     let mut simple_upper_triangular = vec![0; original_upper_triangular.len()];
     let mut ind = 0;
@@ -234,6 +231,28 @@ fn test_airport_finding() {
 
     // They should be equal!
     assert_eq!(original_upper_triangular.iter().sum::<u32>(), simple_upper_triangular.iter().sum::<u32>());
+
+    let mut sparse_original = vec![];
+    let mut sparse_simple = vec![];
+
+    for (ind, &val) in original_upper_triangular.iter().enumerate() {
+        if val != 0 {
+            sparse_original.push((ind, val));
+        }
+    }
+    for (ind, &val) in simple_upper_triangular.iter().enumerate() {
+        if val != 0 {
+            sparse_simple.push((ind, val));
+        }
+    }
+
+
+    for (&v1, &v2) in sparse_original.iter().zip(sparse_simple.iter()) {
+        println!("Sparse: {:?} and {:?}", v1, v2);
+        assert_eq!(v1, v2);
+    }
+
+    assert_eq!(sparse_original, sparse_simple);
     assert_eq!(original_upper_triangular, simple_upper_triangular);
 
 }
