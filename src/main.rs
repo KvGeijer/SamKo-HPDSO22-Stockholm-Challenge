@@ -43,7 +43,7 @@ fn main() {
     let airports = airports::from_csv(&data_path.join("airports.csv"));
     let airport_finder = Arc::new(create_airport_finder(&airports));
     let flight_graph = process_flights(bin_files, airport_finder, airports.len());
-    let topmost_airports = cluster(flight_graph, airports.len());
+    let topmost_airports = cluster(flight_graph, &airports);
 
     println!("{:?}", topmost_airports);
     let _ = plot::plot_map(&airports);
@@ -128,15 +128,15 @@ fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinde
     matrix
 }
 
-fn cluster(flight_graph: Vec<f32>, nbr_airports: usize) -> Vec<String>{
+fn cluster(flight_graph: Vec<f32>, airports: &Vec<Airport>) -> Vec<String>{
     println!("Clustering...");
     let start = Instant::now();
-    let topmost = clusterer::cluster(flight_graph, nbr_airports, 5);
+    let topmost = clusterer::cluster(flight_graph, airports.len(), 5);
     println!("Clustering... OK. Time: {:?}", start.elapsed());
 
     // TODO: Get real string names
     topmost.iter()
-        .map(|ind| ind.to_string())
+        .map(|&ind| format!("{}, {}", airports[ind].name, airports[ind].abr))
         .collect()
 
 }
@@ -245,7 +245,6 @@ fn test_airport_finding() {
             sparse_simple.push((ind, val));
         }
     }
-
 
     for (&v1, &v2) in sparse_original.iter().zip(sparse_simple.iter()) {
         println!("Sparse: {:?} and {:?}", v1, v2);

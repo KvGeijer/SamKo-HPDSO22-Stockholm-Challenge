@@ -59,7 +59,7 @@ impl AirportFinder for KdTreeAirportFinder {
 
 
 pub struct HashAirportFinder {
-    map: HashMap<[i32; 2], usize>
+    map: HashMap<[u8; 8], usize>
 }
 
 impl HashAirportFinder {
@@ -76,13 +76,8 @@ impl HashAirportFinder {
         Self { map }
     }
 
-    fn bucket(v: f32) -> i32 {
-        const RESULUTION: f32 = 1e6;
-        (v*RESULUTION) as i32
-    }
-
-    fn bucket_coord(lat: f32, long: f32) -> [i32; 2] {
-        [Self::bucket(lat), Self::bucket(long)]
+    fn bucket_coord(lat: f32, long: f32) -> [u8; 8] {
+        unsafe {std::mem::transmute((lat, long))}
     }
 }
 

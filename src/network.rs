@@ -21,7 +21,7 @@ impl FlightCountNetwork {
         if n1 != n2 {
             let (i, j) = if n1 > n2 { (n2, n1) } else { (n1, n2) };
             //println!("i: {}, j: {}, n: {}", i, j, self.n);
-            let ind = (self.n - 1)*(i + 1) - (i*i - i)/2 - j - i;
+            let ind = i*(2*self.n - i - 1)/2 + j - i - 1;
             self.connections[ind] += 1;
         }
     }
