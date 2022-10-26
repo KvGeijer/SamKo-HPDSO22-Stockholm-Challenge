@@ -4,9 +4,10 @@ mod network;
 mod clusterer;
 mod plot;
 
-use std::{thread, path::{Path, PathBuf}};
+use std::{thread, path::PathBuf};
 use std::sync::{Mutex, Arc};
 use clap::Parser;
+use std::time::Instant;
 
 use flights_parser::FlightsParser;
 use airports::{Airport, HashAirportFinder};
@@ -15,7 +16,7 @@ use airports::{Airport, HashAirportFinder};
 // To easily toggle between different implementations
 type UsedAirportFinder = HashAirportFinder;
 
-const THREADS: usize = 16;
+const THREADS: usize = 32;
 const NBR_DEND_TOP: usize = 5;
 const AIRPORTS_PATH: &str = "data/airports.csv";
 
@@ -35,13 +36,18 @@ fn main() {
     let args = Args::parse();
     let bin_files = find_bin_files(args.paths);
 
+    let start = Instant::now();
+
     let airports = airports::from_csv(AIRPORTS_PATH);
     let airport_finder = Arc::new(UsedAirportFinder::new(&airports));
     let flight_graph = process_flights(bin_files, airport_finder, airports.len());
     let topmost_airports = cluster(flight_graph, &airports);
 
+    let elapsed_time = start.elapsed();
+
     println!("{:?}", topmost_airports);
     let _ = plot::plot_map(&airports);
+    println!("Elapsed computing time: {:?}", elapsed_time);
 }
 
 fn find_bin_files(data_paths: Vec<String>) -> Vec<PathBuf> {
