@@ -12,7 +12,7 @@ pub struct Airport {
     pub id: usize,
 }
 
-pub fn from_csv(path: &Path) -> Vec<Airport> {
+pub fn from_csv(path: &str) -> Vec<Airport> {
     let csv = quick_csv::Csv::from_file(path).expect("Could not find airport location file.");
     csv.into_iter()
         .skip(1)

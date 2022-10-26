@@ -27,17 +27,16 @@ const THREADS: usize = 16;
     long_about = None
 )]
 struct Args {
-   #[arg(short)]
-   path: String
+   paths: Vec<String>
 }
 
 fn main() {
 
     let args = Args::parse();
-    let data_path = Path::new(&args.path);
-    let bin_files = find_bin_files(&data_path);
+    let dir_paths: Vec<_> = args.paths.iter().map(|p| PathBuf::from(p)).collect();
+    let bin_files = find_bin_files(&dir_paths);
 
-    let airports = airports::from_csv(&data_path.join("airports.csv"));
+    let airports = airports::from_csv("data/airports.csv");
     let airport_finder = Arc::new(create_airport_finder(&airports));
     let flight_graph = process_flights(bin_files, airport_finder, airports.len());
     let topmost_airports = cluster(flight_graph, &airports);
@@ -54,12 +53,17 @@ fn create_airport_finder(airports: &Vec<Airport>) -> UsedAirportFinder {
     kdtree
 }
 
-fn find_bin_files(data_path: &Path) -> Vec<PathBuf> {
+fn find_bin_files(data_path: &Vec<PathBuf>) -> Vec<PathBuf> {
     // TODO: be able to take several folders as specified in challenge.
     // TODO: re-write as functional!
     let mut bins = vec![];
 
-    for entry in data_path.read_dir().unwrap() {
+    let all_files = data_path
+        .iter()
+        .flat_map(|p| p.read_dir())
+        .flat_map(|d| d);
+
+    for entry in all_files  {
         let path = entry.unwrap().path();
         if let Some(ext) = path.extension() {
             if ext == "bin" {
@@ -157,7 +161,7 @@ fn dissimilarity_from_binary(mut dissimilarity_graph: network::FlightCountNetwor
 fn test_airport_finding() {
     // Compare two methods of testing
 
-    let airports = airports::from_csv(&Path::new("data/airports.csv"));
+    let airports = airports::from_csv("data/airports.csv");
 
     // Compare different implementations
     let airport_finder_tree = KdTreeAirportFinder::new(&airports);
