@@ -45,9 +45,12 @@ fn main() {
 
     let elapsed_time = start.elapsed();
 
-    println!("{:?}", topmost_airports);
+    println!("Topmost {} airports in dendrogram:", NBR_DEND_TOP);
+    for (airport, nbr) in topmost_airports.into_iter().zip(1..) {
+        println!("    {}) {}", nbr, airport);
+    }
+    println!("\nElapsed computing time: {:?}", elapsed_time);
     let _ = plot::plot_map(&airports);
-    println!("Elapsed computing time: {:?}", elapsed_time);
 }
 
 fn find_bin_files(data_paths: Vec<String>) -> Vec<PathBuf> {
