@@ -1,4 +1,4 @@
-use std::{path::Path, collections::HashMap};
+use std::collections::HashMap;
 
 use quick_csv;
 use kd_tree::KdMap;
@@ -40,6 +40,7 @@ pub struct KdTreeAirportFinder {
 }
 
 impl KdTreeAirportFinder {
+    #[allow(dead_code)]
     pub fn new(airports: &Vec<Airport>) -> Self {
         let spatial_ind = airports.iter().enumerate().map(|(i, a)|
             (lat_long_to_point(a.lat, a.long), i)
@@ -66,6 +67,7 @@ pub struct HashAirportFinder {
 }
 
 impl HashAirportFinder {
+    #[allow(dead_code)]
     pub fn new(airports: &Vec<Airport>) -> Self {
         let mut map = HashMap::new();
         for (i, airport) in airports.iter().enumerate() {
@@ -94,43 +96,6 @@ impl AirportFinder for HashAirportFinder {
     }
 }
 
-
-pub struct DoubleLoopAirportFinder {
-    airports: Vec<[f32; 3]>,
-}
-
-impl DoubleLoopAirportFinder {
-    pub fn new(airports: &Vec<Airport>) -> Self {
-        let coords = airports.iter()
-            .map(|airport| lat_long_to_point(airport.lat, airport.long))
-            .collect();
-        Self {
-            airports: coords
-        }
-    }
-}
-
-impl AirportFinder for DoubleLoopAirportFinder {
-    fn closest_ind(&self, lat: f32, long: f32) -> usize {
-        let flight_point = lat_long_to_point(lat, long);
-
-        let distances: Vec<f32> = self.airports
-            .iter()
-            .map(|airport_coords| flight_point
-                    .iter()
-                    .zip(airport_coords.iter())
-                    .map(|(x, y)| (*x-*y)*(*x-*y))
-                    .sum::<f32>()
-                )
-            .collect();
-
-        distances.iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| b.total_cmp(a))
-            .map(|(index, _)| index)
-            .unwrap()
-    }
-}
 
 fn lat_long_to_point(lat: f32, long: f32) -> [f32; 3] {
     let lo = long.to_radians();
