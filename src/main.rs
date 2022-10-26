@@ -15,12 +15,9 @@ use std::time::Instant;
 
 type UsedAirportFinder = KdTreeAirportFinder;
 
-// How many threads to use. Could make it possible to change through command line
-macro_rules! THREADS {
-    () => {
-        16
-    };
-}
+// How many threads to use
+const THREADS: usize = 16;
+
 
 #[derive(Parser, Debug)]
 #[command(
@@ -79,7 +76,7 @@ fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinde
     let start = Instant::now();
     println!("Parsing and adding Networks...");
 
-    let nbr_threads = std::cmp::min(THREADS!(), bin_files.len());
+    let nbr_threads = std::cmp::min(THREADS, bin_files.len());
     let files_per_thread = (bin_files.len() + nbr_threads - 1)/nbr_threads;
     let bin_file_chunks = bin_files
         .chunks(files_per_thread)
