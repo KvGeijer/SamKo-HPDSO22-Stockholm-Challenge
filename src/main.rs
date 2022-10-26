@@ -24,7 +24,7 @@ const AIRPORTS_PATH: &str = "data/airports.csv";
 #[derive(Parser, Debug)]
 #[command(
     author = "Kåre von Geier and Samuel Selleck",
-    version = "1.0",
+    version = "42.0",
     about = "HPDSO22 Challenge Attempt",
     long_about = None
 )]
@@ -33,10 +33,10 @@ struct Args {
 }
 
 fn main() {
+    let start = Instant::now();
+
     let args = Args::parse();
     let bin_files = find_bin_files(args.paths);
-
-    let start = Instant::now();
 
     let airports = airports::from_csv(AIRPORTS_PATH);
     let airport_finder = Arc::new(UsedAirportFinder::new(&airports));
@@ -49,7 +49,7 @@ fn main() {
     for (airport, nbr) in topmost_airports.into_iter().zip(1..) {
         println!("    {}) {}", nbr, airport);
     }
-    println!("\nElapsed computing time: {:?}", elapsed_time);
+    println!("\nBenchmark time: {:?}", elapsed_time);
     let _ = plot::plot_map(&airports);
 }
 

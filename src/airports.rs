@@ -96,7 +96,6 @@ impl AirportFinder for HashAirportFinder {
     }
 }
 
-
 fn lat_long_to_point(lat: f32, long: f32) -> [f32; 3] {
     let lo = long.to_radians();
     let la = lat.to_radians();

@@ -42,7 +42,7 @@ pub fn plot_map(airports: &Vec<Airport>) -> Result<(), Box<dyn std::error::Error
             Circle::new((long_0to1, lat_0to1), 5.0_f64, &RED)
     }))?;
     // To avoid the IO failure being ignored silently, we manually call the present function
-    root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
-    println!("Result has been saved to {}", OUT_FILE_NAME);
+    root.present().expect("Unable to write result to file");
+    println!("Plot result has been saved to {}", OUT_FILE_NAME);
     Ok(())
 }
