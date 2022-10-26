@@ -61,7 +61,7 @@ fn find_bin_files(data_path: &Vec<PathBuf>) -> Vec<PathBuf> {
     let all_files = data_path
         .iter()
         .flat_map(|p| p.read_dir())
-        .flat_map(|d| d);
+        .flatten();
 
     for entry in all_files  {
         let path = entry.unwrap().path();
