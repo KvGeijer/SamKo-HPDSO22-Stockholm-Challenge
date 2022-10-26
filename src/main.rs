@@ -12,18 +12,19 @@ use flights_parser::FlightsParser;
 use airports::{Airport, HashAirportFinder};
 
 
-// Can toggle between different implementations
+// To easily toggle between different implementations
 type UsedAirportFinder = HashAirportFinder;
 
-// How many threads to use
 const THREADS: usize = 16;
+const NBR_DEND_TOP: usize = 5;
+const AIRPORTS_PATH: &str = "data/airports.csv";
 
 
 #[derive(Parser, Debug)]
 #[command(
     author = "Kåre von Geier and Samuel Selleck",
     version = "1.0",
-    about = "HPDSO22 Challenge Atempt",
+    about = "HPDSO22 Challenge Attempt",
     long_about = None
 )]
 struct Args {
@@ -31,14 +32,10 @@ struct Args {
 }
 
 fn main() {
-
     let args = Args::parse();
-    let dir_paths: Vec<_> = args.paths.iter()
-        .map(|p| PathBuf::from(p))
-        .collect();
-    let bin_files = find_bin_files(&dir_paths);
+    let bin_files = find_bin_files(args.paths);
 
-    let airports = airports::from_csv("data/airports.csv");
+    let airports = airports::from_csv(AIRPORTS_PATH);
     let airport_finder = Arc::new(UsedAirportFinder::new(&airports));
     let flight_graph = process_flights(bin_files, airport_finder, airports.len());
     let topmost_airports = cluster(flight_graph, &airports);
@@ -47,11 +44,9 @@ fn main() {
     let _ = plot::plot_map(&airports);
 }
 
-fn find_bin_files(data_paths: &Vec<PathBuf>) -> Vec<PathBuf> {
-    // Returns vec of all files with .bin extension in the given folders
-
+fn find_bin_files(data_paths: Vec<String>) -> Vec<PathBuf> {
     data_paths.iter()
-        .flat_map(|dir| dir.read_dir())
+        .filter_map(|dir| PathBuf::from(dir).read_dir().ok())
         .flatten()
         .map(|entry| entry.unwrap().path())
         .filter(|path| {
@@ -84,23 +79,14 @@ fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinde
         let finder_clone = airport_finder.clone();
         let running_thread =
             thread::spawn(move || {
-                let mut file_graph = network::FlightCountNetwork::new(nbr_airports);
-                // Combine all files' graphs into one graph
-                for bin_path in thread_bin_files {
-                    file_graph = dissimilarity_from_binary(file_graph,
-                                                           &bin_path.as_path(),
-                                                           &finder_clone);
-                }
-                // Add your total graph to the collective one
-                combiner_clone.lock()
-                    .unwrap()
-                    .add_network(file_graph);
+                run_thread(nbr_airports, thread_bin_files, &finder_clone, &combiner_clone);
             });
         running_threads.push(running_thread);
     }
 
     for thread in running_threads {
-        thread.join().unwrap();
+        thread.join()
+            .expect("Thread crashed unexpectedly");
     }
 
     let dissimilarity = combiner.lock()
@@ -111,18 +97,24 @@ fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinde
 }
 
 fn cluster(flight_graph: Vec<f32>, airports: &Vec<Airport>) -> Vec<String>{
-    clusterer::cluster(flight_graph, airports.len(), 5)
+    clusterer::cluster(flight_graph, airports.len(), NBR_DEND_TOP)
         .into_iter()
         .map(|ind| format!("{}, {}", airports[ind].name, airports[ind].abr))
         .collect()
 
 }
 
-fn dissimilarity_from_binary(mut dissimilarity_graph: network::FlightCountNetwork, bin_path: &Path,
-                             airport_finder: &UsedAirportFinder) -> network::FlightCountNetwork {
+fn run_thread(nbr_airports: usize, bin_files: Vec<PathBuf>, airport_finder: &UsedAirportFinder,
+              combiner: &Mutex<network::FlightCountNetwork>) {
 
-    let flights = FlightsParser::parse(bin_path);
+    let mut file_graph = network::FlightCountNetwork::new(nbr_airports);
+    for bin_path in bin_files {
+        let flights = FlightsParser::parse(&bin_path);
+        file_graph.add_flights(&flights, airport_finder);
+    }
 
-    dissimilarity_graph.add_flights(&flights, airport_finder);
-    dissimilarity_graph
+    // Add the total graph to the shared one
+    combiner.lock()
+        .unwrap()
+        .add_network(file_graph);
 }
