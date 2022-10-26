@@ -6,6 +6,8 @@ Event details: https://www.hyperightdataclub.com/hp-data-science-open-stockholm/
 Challenge instructions and input files: https://github.com/TheAIFramework/HPDSO22-Stockholm-Challenge
 
 ## Run Benchmark
+install rust following instructions at: https://www.rust-lang.org/tools/install.
+
 clone git repo using:
 
 ```bash
