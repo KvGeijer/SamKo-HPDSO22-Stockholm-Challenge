@@ -7,7 +7,6 @@ pub fn cluster<T: Float>(mut matrix: Vec<T>, singles: usize, returns: usize) -> 
     // in our case can be interpreted as the adjacency matrix for a graph of flight travels.
     // - singles: The size of of one side of the original matrix (number of airports)
     // - returns: The number of indexes we return which are the topmost nodes in the dendrogram.
-    // TODO: Can we make returns better? A generic value?
 
     let dend = linkage(&mut matrix, singles, Method::Average);
 

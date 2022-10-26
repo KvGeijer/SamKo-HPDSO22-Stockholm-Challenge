@@ -1,5 +1,5 @@
-use crate::airports::{AirportFinder, KdTreeAirportFinder, Airport};
-use crate::flights_parser::{Flight};
+use crate::airports::AirportFinder;
+use crate::flights_parser::Flight;
 
 use std::time::Instant;
 
@@ -26,7 +26,7 @@ impl FlightCountNetwork {
         }
     }
 
-    pub fn add_flights(&mut self, flights: &[Flight], airports: &dyn AirportFinder) {
+    pub fn add_flights<T: AirportFinder>(&mut self, flights: &[Flight], airports: &T) {
         for flight in flights {
             let start = airports.closest_ind(flight.from_lat, flight.from_long);
             let end = airports.closest_ind(flight.to_lat, flight.to_long);

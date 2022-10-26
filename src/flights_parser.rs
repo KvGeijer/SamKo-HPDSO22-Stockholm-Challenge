@@ -10,7 +10,6 @@ pub struct Flight {
     pub to_long: f32,
 }
 
-// Just for the nicer function call :D
 pub struct FlightsParser {}
 
 impl FlightsParser {
@@ -21,6 +20,7 @@ impl FlightsParser {
         // representation they used for tuples.
         // The remaining 8 bytes of each pair represents two f32 values in sequence, encoded in
         // little endian.
+        // We could just read the bytes directly to avoid th ecost of parsing.
         let mut flights: Vec<Flight> = vec![];
 
         let binary: Vec<u8> = std::fs::read(file).expect("Invalid binary file!");
@@ -36,17 +36,13 @@ impl FlightsParser {
 }
 
 fn ber_to_flight(ber: BerObject) -> Flight {
-    // TODO: Does this take any meaningful time? Can we make parsing to f32 faster?
-    // TODO: Can we make this cleaner without spending more time? Maybe vectorize?
-
     let bin_slice: &[u8] =
         match ber.content {
             BerObjectContent::OctetString(octet) => octet,
             other => panic!("ERROR, BER CONTENT HAS CHANGED: {:?}", other),
         };
 
-    // Hard coding ftw!
-    // We also now clone the bytes to pass to from_le_bytes as it needs [u8;4] and not a borrowed
+    // To parse into f32 we have to copy the arrays which is not nice
     let from_lat = f32::from_le_bytes(bin_slice[2..6].try_into().unwrap());
     let from_long = f32::from_le_bytes(bin_slice[6..10].try_into().unwrap());
     let to_lat = f32::from_le_bytes(bin_slice[12..16].try_into().unwrap());

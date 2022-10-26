@@ -7,13 +7,13 @@ mod plot;
 use std::{thread, path::{Path, PathBuf}};
 use std::sync::{Mutex, Arc};
 
-use flights_parser::{FlightsParser, Flight};
-use airports::{KdTreeAirportFinder, Airport, AirportFinder, HashAirportFinder, DoubleLoopAirportFinder};
+use flights_parser::{Flight, FlightsParser};
+use airports::{Airport, AirportFinder, HashAirportFinder, KdTreeAirportFinder};
 
 use clap::Parser;
 use std::time::Instant;
 
-type UsedAirportFinder = KdTreeAirportFinder;
+type UsedAirportFinder = HashAirportFinder;
 
 // How many threads to use
 const THREADS: usize = 16;
@@ -53,26 +53,21 @@ fn create_airport_finder(airports: &Vec<Airport>) -> UsedAirportFinder {
     kdtree
 }
 
-fn find_bin_files(data_path: &Vec<PathBuf>) -> Vec<PathBuf> {
-    // TODO: be able to take several folders as specified in challenge.
-    // TODO: re-write as functional!
-    let mut bins = vec![];
+fn find_bin_files(data_paths: &Vec<PathBuf>) -> Vec<PathBuf> {
+    // Returns vec of all files with .bin extension in the given folders
 
-    let all_files = data_path
-        .iter()
-        .flat_map(|p| p.read_dir())
-        .flatten();
-
-    for entry in all_files  {
-        let path = entry.unwrap().path();
-        if let Some(ext) = path.extension() {
-            if ext == "bin" {
-                bins.push(path);
+    data_paths.iter()
+        .flat_map(|dir| dir.read_dir())
+        .flatten()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            if let Some(ext) = path.extension() {
+                ext == "bin"
+            } else {
+                false
             }
-        }
-    }
-
-    bins
+        })
+        .collect()
 }
 
 fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinder>,
@@ -90,16 +85,16 @@ fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinde
 
     let combiner = Arc::new(Mutex::new(network::FlightCountNetwork::new(nbr_airports)));
 
-    // Iterate over binary files and convert them into matrices
-    // Multithreaded: Each threads adds into the combiner network with Mutex
+    // Each thread is given a couple paths to binary files with flight data. It then reads them one
+    // by one and creates a matrix for all of the collective flights. Then it takes a mutex and
+    // updates the shared network with the flights the thread itself has found.
     for thread_bin_files in bin_file_chunks {
         let combiner_clone = combiner.clone();
         let finder_clone = airport_finder.clone();
         let running_thread =
-            // TODO: Factor out thread run function!
             thread::spawn(move || {
                 let mut file_graph = network::FlightCountNetwork::new(nbr_airports);
-                // Combine all your files into one graph
+                // Combine all files' graphs into one graph
                 for bin_path in thread_bin_files {
                     file_graph = dissimilarity_from_binary(file_graph,
                                                            &bin_path.as_path(),
@@ -135,7 +130,6 @@ fn cluster(flight_graph: Vec<f32>, airports: &Vec<Airport>) -> Vec<String>{
     let topmost = clusterer::cluster(flight_graph, airports.len(), 5);
     println!("Clustering... OK. Time: {:?}", start.elapsed());
 
-    // TODO: Get real string names
     topmost.iter()
         .map(|&ind| format!("{}, {}", airports[ind].name, airports[ind].abr))
         .collect()
