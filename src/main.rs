@@ -97,17 +97,16 @@ fn process_flights(bin_files: Vec<PathBuf>, airport_finder: Arc<UsedAirportFinde
 
     let dissimilarity = combiner.lock()
         .unwrap()
-        .to_float_vec();
+        .to_dissimilarity_vec();
 
     dissimilarity
 }
 
-fn cluster(flight_graph: Vec<f32>, airports: &Vec<Airport>) -> Vec<String>{
-    clusterer::cluster(flight_graph, airports.len(), NBR_DEND_TOP)
+fn cluster(dissimilarity_graph: Vec<f32>, airports: &Vec<Airport>) -> Vec<String>{
+    clusterer::cluster(dissimilarity_graph, airports.len(), NBR_DEND_TOP)
         .into_iter()
         .map(|ind| format!("{}, {}", airports[ind].name, airports[ind].abr))
         .collect()
-
 }
 
 fn run_thread(nbr_airports: usize, bin_files: Vec<PathBuf>, airport_finder: &UsedAirportFinder,

@@ -38,10 +38,21 @@ impl FlightCountNetwork {
         }
     }
 
-    pub fn to_float_vec(&self) -> Vec<f32> {
+    pub fn to_dissimilarity_vec(&self) -> Vec<f32> {
+        // Convert the network to a dissimilarity vector represneting a upper triangular matrix
+        //
+        // The similarity metric is defined as the number of connecting flights between two clusters
+        // which means the dissimilarity shuld be inversely proportional to it. We also want to
+        // avoid negative distances, so we negate the values and shift up all of them to be positive
+
+        let shift = *self.connections
+            .iter()
+            .max()
+            .unwrap();
+
         self.connections
             .iter()
-            .map(|unsigned| *unsigned as f32)
+            .map(|unsigned| (shift  - *unsigned) as f32)
             .collect()
     }
 }
