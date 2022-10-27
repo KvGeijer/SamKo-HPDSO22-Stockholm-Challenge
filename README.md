@@ -6,17 +6,18 @@ Event details: https://www.hyperightdataclub.com/hp-data-science-open-stockholm/
 Challenge instructions and input files: https://github.com/TheAIFramework/HPDSO22-Stockholm-Challenge
 
 ## Run Benchmark
-install rust following instructions at: https://www.rust-lang.org/tools/install.
+1) Install rust following instructions at: https://www.rust-lang.org/tools/install.
 
-clone git repo using:
+2) Clone git repo using:
 
 ```bash
 git clone --recurse-submodules git@github.com:ka7801vo/SamKo-HPDSO22-Stockholm-Challenge.git
 
 ```
-cd into folder, and then run:
+3) Enter folder and run:
 
 ```bash
+cd SamKo-HPDSO22-Stockholm-Challenge
 cargo run --release -- <folder 1> <folder 2> ... <folder n>
 ```
 where folder 1..n are paths to directories containing the .bin flight files to parse.
